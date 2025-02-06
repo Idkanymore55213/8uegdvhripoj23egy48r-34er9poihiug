@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monkey Mystery Appeals</title>
+    <style>
+        body {
+            background-color: #2c2f33;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        h1 {
+            margin-top: 20px;
+        }
+        #content {
+            margin-top: 40px;
+        }
+        button {
+            background-color: #7289DA;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #5b6eae;
+        }
+        textarea {
+            width: 80%;
+            max-width: 500px;
+            height: 100px;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            resize: none;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: limegreen;
+            font-weight: bold;
+        }
+        #footer {
+            margin-top: 40px;
+            font-size: 14px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Monkey Mystery Appeals</h1>
+    <div id="content">
+        <button onclick="loginWithDiscord()">Login with Discord</button>
+    </div>
+
+    <div id="footer">
+        <p>https://discord.gg/YJxfDz7QK3</p>
+    </div>
+
+    <script>
+        const CLIENT_ID = "1337148381050441768";
+        const REDIRECT_URI = "https://discord.com/oauth2/authorized";
+        const GUILD_ID = "1225875184586592326";
+
+        function loginWithDiscord() {
+            const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=identify%20guilds`;
+            window.location.href = authUrl;
+        }
+
+        async function checkMembership(accessToken) {
+            const userResponse = await fetch("https://discord.com/api/users/@me", {
+                headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+
+            const guildsResponse = await fetch("https://discord.com/api/users/@me/guilds", {
+                headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+
+            if (!userResponse.ok || !guildsResponse.ok) {
+                document.getElementById("content").innerHTML = "<p class='error'>Error fetching data. Try logging in again.</p>";
+                return;
+            }
+
+            const userData = await userResponse.json();
+            const guilds = await guildsResponse.json();
+            const isMember = guilds.some(guild => guild.id === GUILD_ID);
+            const username = `${userData.username}#${userData.discriminator}`;
+
+            if (isMember) {
+                document.getElementById("content").innerHTML = "<p class='error'>You cannot appeal as you are not banned from the server</p>";
+            } else {
+                document.getElementById("content").innerHTML = `
+                    <p>Why should you be unbanned?</p>
+                    <textarea id="userResponse" placeholder="Type your response here..."></textarea>
+                    <br>
+                    <button onclick="submitResponse('${username}')">Submit</button>
+                `;
+            }
+        }
+
+async function submitResponse(username) {
+    const response = document.getElementById("userResponse").value.trim();
+
+    if (response.length < 10 || response.length > 255) {
+        alert("Your appeal must be between 10 and 255 characters.");
+        return;
+    }
+
+    // Send data to backend
+    const backendURL = "https://wild-smoke-f39a.monkeymysteryteam.workers.dev/";
+    const res = await fetch(backendURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, message: response }),
+    });
+
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById("content").innerHTML = 
+            "<p class='success'>Appeal sent! Unfortunately we do not know when your appeal will be accepted...</p>";
+    } else {
+        alert("Error sending appeal. Try again later.");
+    }
+}
+
+
+            document.getElementById("content").innerHTML = "<p class='success'>Appeal sent! Unfortunately we do not know when your appeal will be accepted and we have no way to tell you if it is or not. Keep checking using the link at the bottom of the page. If you can still not join after 30 days, your appeal was denied!</p>";
+        }
+
+        // Handle OAuth2 Redirect
+        window.onload = function () {
+            const fragment = new URLSearchParams(window.location.hash.substring(1));
+            const accessToken = fragment.get("access_token");
+
+            if (accessToken) {
+                checkMembership(accessToken);
+            }
+        };
+    </script>
+
+</body>
+</html>
