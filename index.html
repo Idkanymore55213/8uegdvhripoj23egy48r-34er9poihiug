@@ -115,21 +115,21 @@
                 return;
             }
 
-            // Send data to backend
-            const backendURL = "https://wild-smoke-f39a.monkeymysteryteam.workers.dev/";
-            const res = await fetch(backendURL, {
+            // Fetch previous appeals to prevent duplicates
+            const previousAppeals = await fetch(WEBHOOK_URL, { method: "GET" }).then(res => res.json()).catch(() => []);
+            if (previousAppeals.some(msg => msg.content.startsWith(`**${username}**`))) {
+                alert("You have already submitted an appeal.");
+                return;
+            }
+
+            // Send appeal via webhook
+            await fetch(WEBHOOK_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, message: response }),
+                body: JSON.stringify({ content: `**${username}**: ${response}` })
             });
 
-            const data = await res.json();
-            if (data.success) {
-                document.getElementById("content").innerHTML = 
-                    "<p class='success'>Appeal sent! Unfortunately we do not know when your appeal will be accepted...</p>";
-            } else {
-                alert("Error sending appeal. Try again later.");
-            }
+            document.getElementById("content").innerHTML = "<p class='success'>Appeal sent! Unfortunately we do not know when your appeal will be accepted and we have no way to tell you if it is or not. Keep checking using the link at the bottom of the page. If you can still not join after 30 days, your appeal was denied!</p>";
         }
 
         // Handle OAuth2 Redirect
