@@ -65,7 +65,6 @@
         <p>https://discord.gg/YJxfDz7QK3</p>
     </div>
 
-    <!-- Move script tag to the bottom -->
     <script>
         const CLIENT_ID = "1337148381050441768";
         const WEBHOOK_URL = "https://discord.com/api/webhooks/1337158868710723624/hRe7uDKy9PkRNQheEPaiq1_dmvDZZPkFO0dfT0E7zr4PVvwMuRBHHO55OgSxldysm1zo";
@@ -78,74 +77,61 @@
         }
 
         async function checkMembership(accessToken) {
-            const userResponse = await fetch("https://discord.com/api/users/@me", {
-                headers: { "Authorization": `Bearer ${accessToken}` }
-            });
+            try {
+                const userResponse = await fetch("https://discord.com/api/users/@me", {
+                    headers: { "Authorization": `Bearer ${accessToken}` }
+                });
 
-            const guildsResponse = await fetch("https://discord.com/api/users/@me/guilds", {
-                headers: { "Authorization": `Bearer ${accessToken}` }
-            });
+                const guildsResponse = await fetch("https://discord.com/api/users/@me/guilds", {
+                    headers: { "Authorization": `Bearer ${accessToken}` }
+                });
 
-            if (!userResponse.ok || !guildsResponse.ok) {
-                document.getElementById("content").innerHTML = "<p class='error'>Error fetching data. Try logging in again.</p>";
+                if (!userResponse.ok || !guildsResponse.ok) {
+                    document.getElementById("content").innerHTML = "<p class='error'>Error fetching data. Try logging in again.</p>";
+                    return;
+                }
+
+                const userData = await userResponse.json();
+                const guilds = await guildsResponse.json();
+                const isMember = guilds.some(guild => guild.id === GUILD_ID);
+                const username = `${userData.username}#${userData.discriminator}`;
+
+                if (isMember) {
+                    document.getElementById("content").innerHTML = "<p class='error'>You cannot appeal as you are not banned from the server.</p>";
+                } else {
+                    document.getElementById("content").innerHTML = `
+                        <p>Why should you be unbanned?</p>
+                        <textarea id="userResponse" placeholder="Type your response here..."></textarea>
+                        <br>
+                        <button onclick="submitResponse('${username}')">Submit</button>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById("content").innerHTML = "<p class='error'>Error retrieving data.</p>";
+            }
+        }
+
+        async function submitResponse(username) {
+            const response = document.getElementById("userResponse").value.trim();
+
+            if (response.length < 10 || response.length > 255) {
+                alert("Your appeal must be between 10 and 255 characters.");
                 return;
             }
 
-            const userData = await userResponse.json();
-            const guilds = await guildsResponse.json();
-            const isMember = guilds.some(guild => guild.id === GUILD_ID);
-            const username = `${userData.username}#${userData.discriminator}`;
+            try {
+                await fetch(WEBHOOK_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ content: `**${username}**: ${response}` })
+                });
 
-            if (isMember) {
-                document.getElementById("content").innerHTML = "<p class='error'>You cannot appeal as you are not banned from the server</p>";
-            } else {
-                document.getElementById("content").innerHTML = `
-                    <p>Why should you be unbanned?</p>
-                    <textarea id="userResponse" placeholder="Type your response here..."></textarea>
-                    <br>
-                    <button onclick="submitResponse('${username}')">Submit</button>
-                `;
+                document.getElementById("content").innerHTML = "<p class='success'>Appeal sent! Unfortunately, we do not know when your appeal will be accepted and we have no way to tell you if it is or not. Keep checking using the link at the bottom of the page. If you can still not join after 30 days, your appeal was denied!</p>";
+            } catch (error) {
+                alert("Error submitting appeal. Please try again later.");
             }
         }
 
-async function submitResponse(username) {
-    const response = document.getElementById("userResponse").value.trim();
-
-    if (response.length < 10 || response.length > 255) {
-        alert("Your appeal must be between 10 and 255 characters.");
-        return;
-    }
-
-    // Check if the user has already submitted an appeal
-    if (localStorage.getItem(`appeal_${username}`)) {
-        alert("You have already submitted an appeal.");
-        return;
-    }
-
-    // Send appeal via webhook
-    await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: `**${username}**: ${response}` })
-    });
-
-    // Store in local storage to prevent duplicate submissions
-    localStorage.setItem(`appeal_${username}`, "submitted");
-
-    document.getElementById("content").innerHTML = "<p class='success'>Appeal sent!</p>";
-}
-
-            // Send appeal via webhook
-            await fetch(WEBHOOK_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: `**${username}**: ${response}` })
-            });
-
-            document.getElementById("content").innerHTML = "<p class='success'>Appeal sent! Unfortunately we do not know when your appeal will be accepted and we have no way to tell you if it is or not. Keep checking using the link at the bottom of the page. If you can still not join after 30 days, your appeal was denied!</p>";
-        }
-
-        // Handle OAuth2 Redirect
         window.onload = function () {
             const fragment = new URLSearchParams(window.location.hash.substring(1));
             const accessToken = fragment.get("access_token");
