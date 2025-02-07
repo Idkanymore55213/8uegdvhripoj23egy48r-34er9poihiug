@@ -108,20 +108,32 @@
             }
         }
 
-        async function submitResponse(username) {
-            const response = document.getElementById("userResponse").value.trim();
+async function submitResponse(username) {
+    const response = document.getElementById("userResponse").value.trim();
 
-            if (response.length < 10 || response.length > 255) {
-                alert("Your appeal must be between 10 and 255 characters.");
-                return;
-            }
+    if (response.length < 10 || response.length > 255) {
+        alert("Your appeal must be between 10 and 255 characters.");
+        return;
+    }
 
-            // Fetch previous appeals to prevent duplicates
-            const previousAppeals = await fetch(WEBHOOK_URL, { method: "GET" }).then(res => res.json()).catch(() => []);
-            if (previousAppeals.some(msg => msg.content.startsWith(`**${username}**`))) {
-                alert("You have already submitted an appeal.");
-                return;
-            }
+    // Check if the user has already submitted an appeal
+    if (localStorage.getItem(`appeal_${username}`)) {
+        alert("You have already submitted an appeal.");
+        return;
+    }
+
+    // Send appeal via webhook
+    await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: `**${username}**: ${response}` })
+    });
+
+    // Store in local storage to prevent duplicate submissions
+    localStorage.setItem(`appeal_${username}`, "submitted");
+
+    document.getElementById("content").innerHTML = "<p class='success'>Appeal sent!</p>";
+}
 
             // Send appeal via webhook
             await fetch(WEBHOOK_URL, {
